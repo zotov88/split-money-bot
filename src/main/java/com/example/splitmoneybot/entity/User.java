@@ -1,5 +1,6 @@
 package com.example.splitmoneybot.entity;
 
+import com.example.splitmoneybot.constant.UserState;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,6 +20,9 @@ public class User {
     @Id
     @Column(name = "chat_id")
     private Long chatId;
+
+    @Enumerated(EnumType.STRING)
+    private UserState state = UserState.IDLE;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Group> groups = new ArrayList<>();
