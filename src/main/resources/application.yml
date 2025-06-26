@@ -1,0 +1,16 @@
+spring.application.name: split-money-bot
+
+logging.level.com.example.splitmoneybot: DEBUG
+
+spring.datasource.url: ${DB_URL}
+spring.datasource.username: ${DB_USERNAME}
+spring.datasource.password: ${DB_PASSWORD}
+spring.datasource.driver-class-name: org.postgresql.Driver
+
+spring.jpa.database-platform: org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.hibernate.ddl-auto: update
+#spring.jpa.show-sql: true
+spring.jpa.properties.hibernate.format_sql: true
+
+telegram.bot.token: ${TG-TOKEN-SPLIT-MONEY}
+telegram.bot.username: ${TG-USERNAME-SPLIT-MONEY}
