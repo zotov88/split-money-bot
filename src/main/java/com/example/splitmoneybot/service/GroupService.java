@@ -18,7 +18,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
 
     public Group createGroup(Long chatId, String groupName) {
-        User user = userService.save(chatId);
+        User user = userService.saveOrGet(chatId);
         Group newGroup = Group.builder()
                 .groupName(groupName)
                 .user(user)

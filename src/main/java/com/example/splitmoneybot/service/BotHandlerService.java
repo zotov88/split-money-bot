@@ -12,6 +12,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import static com.example.splitmoneybot.constant.BotConstant.*;
+import static com.example.splitmoneybot.constant.UserState.IDLE;
+import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_GROUP_NAME;
 
 @Service
 @Slf4j
@@ -52,7 +54,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
         if (text.startsWith("/")) {
             commandHandler(update);
         }
-        if (state.equals(UserState.WAITING_FOR_GROUP_NAME) && text.startsWith("группа - ")) {
+        if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
             createGroup(update);
         }
     }
@@ -62,12 +64,15 @@ public class BotHandlerService extends TelegramLongPollingBot {
         Long chatId = update.getMessage().getChatId();
 
         if ("/start".equals(command)) {
-            userService.setState(chatId, UserState.IDLE);
+            userService.setState(chatId, IDLE);
             sendSimpleText(chatId, WELCOME_MESSAGE);
         }
         if ("/new_collect".equals(command)) {
-            userService.setState(chatId, UserState.WAITING_FOR_GROUP_NAME);
+            userService.setState(chatId, WAITING_FOR_GROUP_NAME);
             sendSimpleText(chatId, NEW_GROUP);
+        }
+        if ("/all_collect".equals(command)) {
+
         }
     }
 
@@ -78,13 +83,15 @@ public class BotHandlerService extends TelegramLongPollingBot {
             log.debug("Not found name for collect");
             throw new RuntimeException("Not found name for collect");
         }
-        String collectName = createCollectCommand[1];
+        String groupName = createCollectCommand[1];
         Long chatId = update.getMessage().getChatId();
-        Group group = groupService.createGroup(chatId, collectName);
+        Group group = groupService.createGroup(chatId, groupName);
         if (group == null) {
-            sendSimpleText(chatId, GROUP_ALREADY_EXISTS);
+            sendSimpleText(chatId, String.format(GROUP_ALREADY_EXISTS, groupName));
+        } else {
+            sendSimpleText(chatId, String.format(GROUP_CREATED, group.getGroupName()));
         }
-        sendSimpleText(chatId, GROUP_CREATED);
+        userService.setState(chatId, IDLE);
     }
 
     private void sendSimpleText(Long chatId, String text) {

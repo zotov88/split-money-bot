@@ -2,10 +2,7 @@ package com.example.splitmoneybot.entity;
 
 import com.example.splitmoneybot.constant.UserState;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +11,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = "groups")
 @Entity
 @Table(schema = "split_money", name = "users")
 public class User {
