@@ -3,17 +3,15 @@ package com.example.splitmoneybot.mapper;
 import com.example.splitmoneybot.dto.UserDto;
 import com.example.splitmoneybot.entity.Group;
 import com.example.splitmoneybot.entity.User;
-import com.example.splitmoneybot.repository.GroupRepository;
+import com.example.splitmoneybot.service.GroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 public class UserMapper implements Mapper<User, UserDto> {
 
-    private final GroupRepository groupRepository;
+    private final GroupService groupService;
 
     @Override
     public UserDto toDto(User entity) {
@@ -29,11 +27,7 @@ public class UserMapper implements Mapper<User, UserDto> {
         return User.builder()
                 .chatId(dto.getChatId())
                 .state(dto.getState())
-                .groups(getGroups(dto.getChatId()))
+                .groups(groupService.getAllGroupsByChatId(dto.getChatId()))
                 .build();
-    }
-
-    private List<Group> getGroups(Long chatId) {
-        return groupRepository.findAllByChatId(chatId);
     }
 }

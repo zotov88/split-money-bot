@@ -1,7 +1,6 @@
 package com.example.splitmoneybot.service;
 
 import com.example.splitmoneybot.dto.GroupDto;
-import com.example.splitmoneybot.dto.UserDto;
 import com.example.splitmoneybot.entity.Group;
 import com.example.splitmoneybot.entity.User;
 import com.example.splitmoneybot.mapper.Mapper;
@@ -12,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -20,7 +21,6 @@ public class GroupService {
 
     private final UserService userService;
     private final GroupRepository groupRepository;
-    private final Mapper<User, UserDto> userMapper;
     private final Mapper<Group, GroupDto> groupMapper;
 
     public GroupDto createGroup(Update update) {
@@ -37,9 +37,9 @@ public class GroupService {
     }
 
     private Group create(Long chatId, String groupName) {
-        log.debug("Create group with name {}", groupName);
+        log.debug("Create group {}", groupName);
 
-        User user = userMapper.toEntity(userService.saveOrGet(chatId));
+        User user = userService.saveOrGet(chatId);
         Group newGroup = Group.builder()
                 .name(groupName)
                 .user(user)
@@ -54,7 +54,7 @@ public class GroupService {
         return groupRepository.save(newGroup);
     }
 
-//    public List<Group> getAllGroups(Long chatId) {
-//        return groupRepository.findAllByChatId(chatId);
-//    }
+    public List<Group> getAllGroupsByChatId(Long chatId) {
+        return groupRepository.findAllByChatId(chatId);
+    }
 }

@@ -28,14 +28,6 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .build();
     }
 
-    private static Long getChatId(Group entity) {
-        return entity == null ? null : entity.getUser().getChatId();
-    }
-
-    private List<UUID> geItemIds(List<Item> items) {
-        return items == null ? null : items.stream().map(Item::getId).toList();
-    }
-
     @Override
     public Group toEntity(GroupDto dto) {
         return Group.builder()
@@ -44,5 +36,13 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .user(userService.getById(dto.getChatId()))
                 .items(itemService.getItems(dto.getId()))
                 .build();
+    }
+
+    private Long getChatId(Group entity) {
+        return entity == null ? null : entity.getUser().getChatId();
+    }
+
+    private List<UUID> geItemIds(List<Item> items) {
+        return items == null ? null : items.stream().map(Item::getId).toList();
     }
 }

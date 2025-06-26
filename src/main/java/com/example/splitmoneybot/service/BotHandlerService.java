@@ -11,8 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import static com.example.splitmoneybot.constant.BotConstant.NEW_GROUP;
-import static com.example.splitmoneybot.constant.BotConstant.WELCOME_MESSAGE;
+import static com.example.splitmoneybot.constant.BotConstant.*;
 import static com.example.splitmoneybot.constant.UserState.IDLE;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_GROUP_NAME;
 
@@ -51,18 +50,24 @@ public class BotHandlerService extends TelegramLongPollingBot {
         }
 
         String text = update.getMessage().getText();
-        UserState state = userService.getState(update.getMessage().getChatId());
+        Long chatId = update.getMessage().getChatId();
+        UserState state = userService.getState(chatId);
+
         if (text.startsWith("/")) {
             commandHandler(update);
         }
         if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
-            GroupDto group = groupService.createGroup(update);
-            //        if (group == null) {
-//            sendSimpleText(chatId, String.format(GROUP_ALREADY_EXISTS, groupName));
-//        } else {
-//            sendSimpleText(chatId, String.format(GROUP_CREATED, group.getName()));
-//        }
-//            userService.setState(chatId, IDLE);
+            createGroup(update, chatId);
+            userService.setState(chatId, IDLE);
+        }
+    }
+
+    private void createGroup(Update update, Long chatId) {
+        GroupDto group = groupService.createGroup(update);
+        if (group == null) {
+            sendSimpleText(chatId, GROUP_ALREADY_EXISTS);
+        } else {
+            sendSimpleText(chatId, String.format(GROUP_CREATED, group.getName()));
         }
     }
 
