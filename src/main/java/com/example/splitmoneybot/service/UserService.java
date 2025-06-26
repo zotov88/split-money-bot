@@ -1,7 +1,9 @@
 package com.example.splitmoneybot.service;
 
 import com.example.splitmoneybot.constant.UserState;
+import com.example.splitmoneybot.dto.UserDto;
 import com.example.splitmoneybot.entity.User;
+import com.example.splitmoneybot.mapper.Mapper;
 import com.example.splitmoneybot.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -14,16 +16,17 @@ import org.springframework.stereotype.Service;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final Mapper<User, UserDto> userMapper;
 
     @Transactional
-    public User saveOrGet(Long chatId) {
-        return userRepository.findById(chatId)
+    public UserDto saveOrGet(Long chatId) {
+        return userMapper.toDto(userRepository.findById(chatId)
                 .orElseGet(() -> userRepository.save(
                         User.builder()
                                 .chatId(chatId)
                                 .state(UserState.IDLE)
                                 .build()
-                ));
+                )));
     }
 
     @Transactional
@@ -43,5 +46,9 @@ public class UserService {
         return userRepository.findById(chatId)
                 .map(User::getState)
                 .orElse(UserState.IDLE);
+    }
+
+    public User getById(Long chatId) {
+        return userRepository.getReferenceById(chatId);
     }
 }

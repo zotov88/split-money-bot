@@ -21,13 +21,19 @@ public class Group {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "group_name")
-    private String groupName;
+    @Column(name = "name")
+    private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_id")
     private User user;
 
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GroupItem> items = new ArrayList<>();
+    @ManyToMany
+    @JoinTable(
+            schema = "split_money",
+            name = "group_items",
+            joinColumns = @JoinColumn(name = "group_id"),
+            inverseJoinColumns = @JoinColumn(name = "item_id")
+    )
+    private List<Item> items = new ArrayList<>();
 }
