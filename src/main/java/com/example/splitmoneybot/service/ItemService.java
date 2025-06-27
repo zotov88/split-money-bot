@@ -17,6 +17,10 @@ public class ItemService {
 
     private final ItemRepository itemRepository;
 
+    public Item saveItem(Item item) {
+        return itemRepository.save(item);
+    }
+
     public List<Item> getItems(UUID id) {
         return itemRepository.findAllById(List.of(id));
     }

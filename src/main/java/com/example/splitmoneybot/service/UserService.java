@@ -4,9 +4,15 @@ import com.example.splitmoneybot.constant.UserState;
 import com.example.splitmoneybot.entity.User;
 import com.example.splitmoneybot.repository.UserRepository;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +20,8 @@ import org.springframework.stereotype.Service;
 public class UserService {
 
     private final UserRepository userRepository;
+
+    private final Map<Long, UUID> currentGroupIdMap = new HashMap<>();
 
     @Transactional
     public User saveOrGet(Long chatId) {
@@ -49,5 +57,13 @@ public class UserService {
 
     public User getById(Long chatId) {
         return userRepository.getReferenceById(chatId);
+    }
+
+    public void updateCurrentGroupId(Long chatId, UUID groupId) {
+        currentGroupIdMap.put(chatId, groupId);
+    }
+
+    public UUID getCurrentGroupId(Long chatId) {
+        return currentGroupIdMap.get(chatId);
     }
 }
