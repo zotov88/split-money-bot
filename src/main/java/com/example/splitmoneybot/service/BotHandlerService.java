@@ -153,7 +153,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
             userService.setState(chatId, IDLE);
         }
         if (WAITING_FOR_GROUP_MEMBER.equals(state) && text.matches(regexAddMember)) {
-            addMember(update, chatId);
+            addMember(update);
             userService.setState(chatId, IDLE);
         }
     }
@@ -167,7 +167,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
         }
     }
 
-    private void addMember(Update update, Long chatId) {
+    private void addMember(Update update) {
         groupService.addMemberToGroup(update);
     }
 

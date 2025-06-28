@@ -1,15 +1,15 @@
 package com.example.splitmoneybot.mapper;
 
-import com.example.splitmoneybot.dto.ItemDto;
-import com.example.splitmoneybot.entity.Item;
+import com.example.splitmoneybot.dto.MemberDto;
+import com.example.splitmoneybot.entity.Member;
 import org.springframework.stereotype.Component;
 
 @Component
-public class ItemMapper implements Mapper<Item, ItemDto> {
+public class MemberMapper implements Mapper<Member, MemberDto> {
 
     @Override
-    public ItemDto toDto(Item entity) {
-        return ItemDto.builder()
+    public MemberDto toDto(Member entity) {
+        return MemberDto.builder()
                 .id(entity.getId())
                 .name(entity.getName())
                 .money(entity.getMoney())
@@ -17,8 +17,8 @@ public class ItemMapper implements Mapper<Item, ItemDto> {
     }
 
     @Override
-    public Item toEntity(ItemDto dto) {
-        return Item.builder()
+    public Member toEntity(MemberDto dto) {
+        return Member.builder()
                 .id(dto.getId())
                 .name(dto.getName())
                 .money(dto.getMoney())

@@ -1,12 +1,12 @@
 package com.example.splitmoneybot.service;
 
 import com.example.splitmoneybot.dto.GroupDto;
+import com.example.splitmoneybot.dto.MemberDto;
 import com.example.splitmoneybot.entity.Group;
-import com.example.splitmoneybot.entity.Item;
+import com.example.splitmoneybot.entity.Member;
 import com.example.splitmoneybot.entity.User;
 import com.example.splitmoneybot.mapper.Mapper;
 import com.example.splitmoneybot.repository.GroupRepository;
-import com.example.splitmoneybot.repository.ItemRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,7 +25,7 @@ import java.util.UUID;
 public class GroupService {
 
     private final UserService userService;
-    private final ItemService itemService;
+    private final MemberService memberService;
     private final GroupRepository groupRepository;
     private final Mapper<Group, GroupDto> groupMapper;
 
@@ -73,17 +74,17 @@ public class GroupService {
 
     @Transactional
     public void addMemberToGroup(Update update) {
-        String[] data = update.getMessage().getText().split(" - ");
-        String memberName = data[0];
-        Integer memberMoney = Integer.parseInt(data[1]);
-
-        Long chatId = update.getMessage().getChatId();
-        UUID groupId = userService.getCurrentGroupId(chatId);
+        String[] data = update.getMessage().getText().split("\n");
+        List<MemberDto> memberDtos = Arrays.stream(data).map(this::mapMemberDto).toList();
+        List<Member> savedMembers = memberService.saveItems(memberDtos);
+        UUID groupId = userService.getCurrentGroupId(update.getMessage().getChatId());
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
-        Item member = Item.builder().name(memberName).money(memberMoney).build();
-        Item savedMember = itemService.saveItem(member);
-        group.getItems().add(savedMember);
-//        groupRepository.save(group);
+        group.getMembers().addAll(savedMembers);
+    }
+
+    private MemberDto mapMemberDto(String d) {
+        String[] split = d.split(" - ");
+        return MemberDto.builder().name(split[0]).money(Integer.valueOf(split[1])).build();
     }
 }

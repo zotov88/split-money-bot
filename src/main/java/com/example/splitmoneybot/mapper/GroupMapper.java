@@ -2,8 +2,8 @@ package com.example.splitmoneybot.mapper;
 
 import com.example.splitmoneybot.dto.GroupDto;
 import com.example.splitmoneybot.entity.Group;
-import com.example.splitmoneybot.entity.Item;
-import com.example.splitmoneybot.service.ItemService;
+import com.example.splitmoneybot.entity.Member;
+import com.example.splitmoneybot.service.MemberService;
 import com.example.splitmoneybot.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import java.util.UUID;
 public class GroupMapper implements Mapper<Group, GroupDto> {
 
     private final UserService userService;
-    private final ItemService itemService;
+    private final MemberService memberService;
 
     @Override
     public GroupDto toDto(Group entity) {
@@ -24,7 +24,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .id(entity.getId())
                 .name(entity.getName())
                 .chatId(getChatId(entity))
-                .itemIds(geItemIds(entity.getItems()))
+                .itemIds(geItemIds(entity.getMembers()))
                 .build();
     }
 
@@ -34,7 +34,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .id(dto.getId())
                 .name(dto.getName())
                 .user(userService.getById(dto.getChatId()))
-                .items(itemService.getItems(dto.getId()))
+                .members(memberService.getItems(dto.getId()))
                 .build();
     }
 
@@ -42,7 +42,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
         return entity == null ? null : entity.getUser().getChatId();
     }
 
-    private List<UUID> geItemIds(List<Item> items) {
-        return items == null ? null : items.stream().map(Item::getId).toList();
+    private List<UUID> geItemIds(List<Member> members) {
+        return members == null ? null : members.stream().map(Member::getId).toList();
     }
 }

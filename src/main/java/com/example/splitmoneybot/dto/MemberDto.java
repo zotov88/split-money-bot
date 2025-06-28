@@ -7,7 +7,7 @@ import java.util.UUID;
 
 @Data
 @Builder
-public class ItemDto {
+public class MemberDto {
 
     private UUID id;
     private String name;

@@ -61,6 +61,7 @@ public class UserService {
 
     public void updateCurrentGroupId(Long chatId, UUID groupId) {
         currentGroupIdMap.put(chatId, groupId);
+        log.debug("Current group {}", currentGroupIdMap);
     }
 
     public UUID getCurrentGroupId(Long chatId) {
