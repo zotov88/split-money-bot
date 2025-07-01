@@ -1,7 +1,6 @@
 package com.example.splitmoneybot.service;
 
 import com.example.splitmoneybot.constant.UserState;
-import com.example.splitmoneybot.dto.GroupDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,14 +9,10 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.List;
-import java.util.UUID;
-
-import static com.example.splitmoneybot.constant.BotConstant.*;
+import static com.example.splitmoneybot.constant.BotConstant.NEW_GROUP;
+import static com.example.splitmoneybot.constant.BotConstant.WELCOME_MESSAGE;
 import static com.example.splitmoneybot.constant.UserState.*;
 
 @Service
@@ -27,6 +22,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
 
     private final UserService userService;
     private final GroupService groupService;
+    private final MemberService memberService;
 
     @Value("${telegram.bot.token}")
     private String botToken;
@@ -65,45 +61,11 @@ public class BotHandlerService extends TelegramLongPollingBot {
         Long chatId = callbackQuery.getMessage().getChatId();
 
         if (callbackData.startsWith("group_")) {
-            getGroup(callbackData, chatId);
+            executeMessage(groupService.getGroup(callbackData, chatId));
         }
         if (callbackData.startsWith("add_member_")) {
-            startAddMember(callbackData, chatId);
+            executeMessage(memberService.startAddMember(callbackData, chatId));
         }
-    }
-
-    private void getGroup(String callbackData, Long chatId) {
-        UUID groupId = UUID.fromString(callbackData.split("_")[1]);
-        GroupDto group = groupService.getGroupDtoById(groupId);
-
-        InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
-                .keyboard(List.of(
-                        List.of(InlineKeyboardButton.builder()
-                                .text("➕ Добавить участника")
-                                .callbackData("add_member_" + groupId)
-                                .build())
-                )).build();
-
-        String response = String.format(
-                "Группа: %s\nID: %s\nУчастники: %d",
-                group.getName(),
-                group.getId(),
-                group.getItemIds().size()
-        );
-        executeMessage(SendMessage.builder().chatId(chatId.toString()).text(response).replyMarkup(keyboard).build());
-    }
-
-    private void startAddMember(String callbackData, Long chatId) {
-        log.debug("Start add member for user {}", chatId);
-
-        UUID groupId = UUID.fromString(callbackData.split("_")[2]);
-        userService.updateCurrentGroupId(chatId, groupId);
-        userService.setState(chatId, WAITING_FOR_GROUP_MEMBER);
-
-        executeMessage(SendMessage.builder()
-                .chatId(chatId.toString())
-                .text("Введите участников и суммы в формате\nимя1 - сумма\nимя2 - сумма")
-                .build());
     }
 
     private void commandHandler(Update update) {
@@ -119,28 +81,8 @@ public class BotHandlerService extends TelegramLongPollingBot {
             executeMessage(SendMessage.builder().chatId(chatId.toString()).text(NEW_GROUP).build());
         }
         if ("/all_groups".equals(command)) {
-            showAllGroups(chatId);
+            executeMessage(groupService.showAllGroups(chatId));
         }
-    }
-
-    private void showAllGroups(Long chatId) {
-        List<GroupDto> groups = groupService.getAllGroupDtoByChatId(chatId);
-        executeMessage(SendMessage.builder()
-                .chatId(chatId.toString())
-                .text("Выберите группу:")
-                .replyMarkup(InlineKeyboardMarkup.builder().keyboard(prepareGroups(groups)).build())
-                .build());
-    }
-
-    private List<List<InlineKeyboardButton>> prepareGroups(List<GroupDto> groups) {
-        return groups.stream()
-                .map(group -> {
-                    InlineKeyboardButton button = new InlineKeyboardButton();
-                    button.setText(group.getName());
-                    button.setCallbackData("group_" + group.getId());
-                    return List.of(button);
-                })
-                .toList();
     }
 
     private void textHandler(Update update) {
@@ -149,26 +91,13 @@ public class BotHandlerService extends TelegramLongPollingBot {
         UserState state = userService.getState(chatId);
 
         if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
-            createGroup(update, chatId);
+            executeMessage(groupService.createGroup(update, chatId));
             userService.setState(chatId, IDLE);
         }
         if (WAITING_FOR_GROUP_MEMBER.equals(state) && text.matches(regexAddMember)) {
-            addMember(update);
+            groupService.addMember(update);
             userService.setState(chatId, IDLE);
         }
-    }
-
-    private void createGroup(Update update, Long chatId) {
-        GroupDto group = groupService.createGroup(update);
-        if (group == null) {
-            executeMessage(SendMessage.builder().chatId(chatId.toString()).text(GROUP_ALREADY_EXISTS).build());
-        } else {
-            executeMessage(SendMessage.builder().chatId(chatId.toString()).text(GROUP_CREATED).build());
-        }
-    }
-
-    private void addMember(Update update) {
-        groupService.addMemberToGroup(update);
     }
 
     private void executeMessage(SendMessage message) {

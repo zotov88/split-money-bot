@@ -24,7 +24,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .id(entity.getId())
                 .name(entity.getName())
                 .chatId(getChatId(entity))
-                .itemIds(geItemIds(entity.getMembers()))
+                .memberIds(geItemIds(entity.getMembers()))
                 .build();
     }
 
