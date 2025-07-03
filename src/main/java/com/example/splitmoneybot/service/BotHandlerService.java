@@ -66,6 +66,9 @@ public class BotHandlerService extends TelegramLongPollingBot {
         if (callbackData.startsWith("add_member_")) {
             executeMessage(memberService.startAddMember(callbackData, chatId));
         }
+        if (callbackData.startsWith("delete_member_")) {
+            executeMessage(memberService.startDeleteMember(callbackData, chatId));
+        }
     }
 
     private void commandHandler(Update update) {
@@ -92,19 +95,22 @@ public class BotHandlerService extends TelegramLongPollingBot {
 
         if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
             executeMessage(groupService.createGroup(update, chatId));
-            userService.setState(chatId, IDLE);
         }
-        if (WAITING_FOR_GROUP_MEMBER.equals(state) && text.matches(regexAddMember)) {
+        if (WAITING_FOR_ADD_MEMBER.equals(state) && text.matches(regexAddMember)) {
             groupService.addMember(update);
-            userService.setState(chatId, IDLE);
         }
+        if (WAITING_FOR_DELETE_MEMBER.equals(state)) {
+            groupService.deleteMember(update);
+        }
+        executeMessage(groupService.showAllGroups(chatId));
+        userService.setState(chatId, IDLE);
     }
 
     private void executeMessage(SendMessage message) {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            log.error("Error sending welcome message", e);
+            log.error("Error sending message", e);
         }
     }
 }

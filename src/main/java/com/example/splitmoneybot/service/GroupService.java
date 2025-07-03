@@ -95,6 +95,22 @@ public class GroupService {
         group.getMembers().addAll(savedMembers);
     }
 
+    public void deleteMember(Update update) {
+        String requestName = update.getMessage().getText();
+        UUID groupId = userService.getCurrentGroupId(update.getMessage().getChatId());
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
+        List<Member> members = group.getMembers();
+        List<Member> foundMember = members.stream().filter(m -> m.getName().equals(requestName)).toList();
+        if (foundMember.isEmpty()) {
+            log.debug("Member {} not found in group {}", requestName, group.getName());
+        } else {
+            Member member = foundMember.get(0);
+            members.remove(member);
+            log.debug("In group {} remove {}", group.getName(), member);
+        }
+    }
+
     private List<MemberDto> getMemberDtos(Update update) {
         String[] data = update.getMessage().getText().split("\n");
         return Arrays.stream(data).map(this::mapMemberDto).collect(Collectors.toList());
@@ -142,9 +158,13 @@ public class GroupService {
         InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
                 .keyboard(List.of(
                         List.of(InlineKeyboardButton.builder()
-                                .text("➕ Добавить участника")
-                                .callbackData("add_member_" + groupId)
-                                .build())
+                                        .text("➕ Добавить")
+                                        .callbackData("add_member_" + groupId)
+                                        .build(),
+                                InlineKeyboardButton.builder()
+                                        .text("➖ Удалить")
+                                        .callbackData("delete_member_" + groupId)
+                                        .build())
                 ))
                 .build();
         return SendMessage.builder()

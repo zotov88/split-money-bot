@@ -14,7 +14,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_GROUP_MEMBER;
+import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_MEMBER;
+import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_DELETE_MEMBER;
 
 
 @Service
@@ -40,14 +41,23 @@ public class MemberService {
 
     public SendMessage startAddMember(String callbackData, Long chatId) {
         log.debug("Start add member for user {}", chatId);
-
         UUID groupId = UUID.fromString(callbackData.split("_")[2]);
         userService.updateCurrentGroupId(chatId, groupId);
-        userService.setState(chatId, WAITING_FOR_GROUP_MEMBER);
-
+        userService.setState(chatId, WAITING_FOR_ADD_MEMBER);
         return SendMessage.builder()
                 .chatId(chatId.toString())
                 .text("Введите участников и суммы в формате\nимя1 - сумма\nимя2 - сумма")
+                .build();
+    }
+
+    public SendMessage startDeleteMember(String callbackData, Long chatId) {
+        log.debug("Start delete member for user {}", chatId);
+        UUID groupId = UUID.fromString(callbackData.split("_")[2]);
+        userService.updateCurrentGroupId(chatId, groupId);
+        userService.setState(chatId, WAITING_FOR_DELETE_MEMBER);
+        return SendMessage.builder()
+                .chatId(chatId.toString())
+                .text("Введите имя участника для удаления.")
                 .build();
     }
 
@@ -58,7 +68,7 @@ public class MemberService {
             sb.append(members.get(i).getName()).append(": ");
             sb.append(members.get(i).getMoney()).append("\n");
         }
-        return sb.toString();
+        return sb.isEmpty() ? "Нет участников" : sb.toString();
     }
 
     public void addMoneyToExistsMembers(List<Member> foundMembers, List<MemberDto> requestMembers) {
