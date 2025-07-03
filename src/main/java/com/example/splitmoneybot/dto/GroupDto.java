@@ -13,5 +13,5 @@ public class GroupDto {
     private UUID id;
     private String name;
     private Long chatId;
-    private List<UUID> itemIds;
+    private List<UUID> memberIds;
 }

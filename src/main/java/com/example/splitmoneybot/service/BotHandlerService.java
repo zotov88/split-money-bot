@@ -1,19 +1,19 @@
 package com.example.splitmoneybot.service;
 
 import com.example.splitmoneybot.constant.UserState;
-import com.example.splitmoneybot.dto.GroupDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import static com.example.splitmoneybot.constant.BotConstant.*;
-import static com.example.splitmoneybot.constant.UserState.IDLE;
-import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_GROUP_NAME;
+import static com.example.splitmoneybot.constant.BotConstant.NEW_GROUP;
+import static com.example.splitmoneybot.constant.BotConstant.WELCOME_MESSAGE;
+import static com.example.splitmoneybot.constant.UserState.*;
 
 @Service
 @Slf4j
@@ -22,12 +22,16 @@ public class BotHandlerService extends TelegramLongPollingBot {
 
     private final UserService userService;
     private final GroupService groupService;
+    private final MemberService memberService;
 
     @Value("${telegram.bot.token}")
     private String botToken;
 
     @Value("${telegram.bot.username}")
     private String botUserName;
+
+    @Value("${regex.add-member}")
+    private String regexAddMember;
 
     @Override
     public String getBotUsername() {
@@ -41,33 +45,29 @@ public class BotHandlerService extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (!update.hasMessage()) {
-            log.debug("Received message is empty");
-            return;
-        }
-        if (!update.getMessage().hasText()) {
-            log.debug("There is not text in message");
-        }
-
-        String text = update.getMessage().getText();
-        Long chatId = update.getMessage().getChatId();
-        UserState state = userService.getState(chatId);
-
-        if (text.startsWith("/")) {
-            commandHandler(update);
-        }
-        if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
-            createGroup(update, chatId);
-            userService.setState(chatId, IDLE);
+        if (update.hasCallbackQuery()) {
+            callbackHandler(update.getCallbackQuery());
+        } else if (update.hasMessage() && update.getMessage().hasText()) {
+            if (update.getMessage().getText().startsWith("/")) {
+                commandHandler(update);
+            } else {
+                textHandler(update);
+            }
         }
     }
 
-    private void createGroup(Update update, Long chatId) {
-        GroupDto group = groupService.createGroup(update);
-        if (group == null) {
-            sendSimpleText(chatId, GROUP_ALREADY_EXISTS);
-        } else {
-            sendSimpleText(chatId, String.format(GROUP_CREATED, group.getName()));
+    private void callbackHandler(CallbackQuery callbackQuery) {
+        String callbackData = callbackQuery.getData();
+        Long chatId = callbackQuery.getMessage().getChatId();
+
+        if (callbackData.startsWith("group_")) {
+            executeMessage(groupService.getGroup(callbackData, chatId));
+        }
+        if (callbackData.startsWith("add_member_")) {
+            executeMessage(memberService.startAddMember(callbackData, chatId));
+        }
+        if (callbackData.startsWith("delete_member_")) {
+            executeMessage(memberService.startDeleteMember(callbackData, chatId));
         }
     }
 
@@ -77,30 +77,40 @@ public class BotHandlerService extends TelegramLongPollingBot {
 
         if ("/start".equals(command)) {
             userService.setState(chatId, IDLE);
-            sendSimpleText(chatId, WELCOME_MESSAGE);
+            executeMessage(SendMessage.builder().chatId(chatId.toString()).text(WELCOME_MESSAGE).build());
         }
-        if ("/new_collect".equals(command)) {
+        if ("/create_group".equals(command)) {
             userService.setState(chatId, WAITING_FOR_GROUP_NAME);
-            sendSimpleText(chatId, NEW_GROUP);
+            executeMessage(SendMessage.builder().chatId(chatId.toString()).text(NEW_GROUP).build());
         }
-        if ("/all_collect".equals(command)) {
-
+        if ("/all_groups".equals(command)) {
+            executeMessage(groupService.showAllGroups(chatId));
         }
     }
 
-    private void sendSimpleText(Long chatId, String text) {
-        SendMessage message = SendMessage.builder()
-                .chatId(chatId.toString())
-                .text(text)
-                .build();
-        extractedMessage(message);
+    private void textHandler(Update update) {
+        String text = update.getMessage().getText();
+        Long chatId = update.getMessage().getChatId();
+        UserState state = userService.getState(chatId);
+
+        if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
+            executeMessage(groupService.createGroup(update, chatId));
+        }
+        if (WAITING_FOR_ADD_MEMBER.equals(state) && text.matches(regexAddMember)) {
+            groupService.addMember(update);
+        }
+        if (WAITING_FOR_DELETE_MEMBER.equals(state)) {
+            groupService.deleteMember(update);
+        }
+        executeMessage(groupService.showAllGroups(chatId));
+        userService.setState(chatId, IDLE);
     }
 
-    private void extractedMessage(SendMessage message) {
+    private void executeMessage(SendMessage message) {
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            log.error("Error sending welcome message", e);
+            log.error("Error sending message", e);
         }
     }
 }

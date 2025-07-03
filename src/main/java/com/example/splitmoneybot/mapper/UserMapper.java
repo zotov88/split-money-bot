@@ -27,7 +27,7 @@ public class UserMapper implements Mapper<User, UserDto> {
         return User.builder()
                 .chatId(dto.getChatId())
                 .state(dto.getState())
-                .groups(groupService.getAllGroupsByChatId(dto.getChatId()))
+                .groups(groupService.getAllGroupByChatId(dto.getChatId()))
                 .build();
     }
 }

@@ -11,7 +11,7 @@ public class BotConstant {
     public String NEW_GROUP = "Введите название группы в формате" +
             "\n\"группа - название группы\".";
 
-    public String GROUP_ALREADY_EXISTS = "Группа \"%s\" уже существует";
+    public String GROUP_ALREADY_EXISTS = "Такая группа уже существует";
 
-    public String GROUP_CREATED = "Группа \"%s\" создана";
+    public String GROUP_CREATED = "Группа создана";
 }
