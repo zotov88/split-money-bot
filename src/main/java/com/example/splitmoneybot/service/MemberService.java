@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Update;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -42,7 +44,7 @@ public class MemberService {
     public SendMessage startAddMember(String callbackData, Long chatId) {
         log.debug("Start add member for user {}", chatId);
         UUID groupId = UUID.fromString(callbackData.split("_")[2]);
-        userService.updateCurrentGroupId(chatId, groupId);
+        CurrentGroup.update(chatId, groupId);
         userService.setState(chatId, WAITING_FOR_ADD_MEMBER);
         return SendMessage.builder()
                 .chatId(chatId.toString())
@@ -53,7 +55,7 @@ public class MemberService {
     public SendMessage startDeleteMember(String callbackData, Long chatId) {
         log.debug("Start delete member for user {}", chatId);
         UUID groupId = UUID.fromString(callbackData.split("_")[2]);
-        userService.updateCurrentGroupId(chatId, groupId);
+        CurrentGroup.update(chatId, groupId);
         userService.setState(chatId, WAITING_FOR_DELETE_MEMBER);
         return SendMessage.builder()
                 .chatId(chatId.toString())
@@ -73,7 +75,7 @@ public class MemberService {
 
     public void addMoneyToExistsMembers(List<Member> foundMembers, List<MemberDto> requestMembers) {
         Map<String, Integer> requestMembersMap = requestMembers.stream()
-                .collect(Collectors.toMap(MemberDto::getName, MemberDto::getMoney, (a, b) -> b));
+                .collect(Collectors.toMap(MemberDto::getName, MemberDto::getMoney, (prev, curr) -> prev));
         for (Member foundMember : foundMembers) {
             if (requestMembersMap.containsKey(foundMember.getName())) {
                 foundMember.setMoney(foundMember.getMoney() + requestMembersMap.get(foundMember.getName()));
@@ -84,5 +86,19 @@ public class MemberService {
     public void removeRepeatMembersFromRequest(List<Member> foundMembers, List<MemberDto> requestMembers) {
         List<String> foundMemberNames = foundMembers.stream().map(Member::getName).toList();
         requestMembers.removeIf(requestMember -> foundMemberNames.contains(requestMember.getName()));
+    }
+
+    public List<MemberDto> getMemberDtos(Update update) {
+        String[] data = update.getMessage().getText().split("\n");
+        return Arrays.stream(data).map(this::mapMemberDto).collect(Collectors.toList());
+    }
+
+    // TODO остановился на этом, нужно добавлять актуальную группу
+    private MemberDto mapMemberDto(String d) {
+        String[] split = d.split(" - ");
+        return MemberDto.builder()
+                .name(split[0])
+                .money(Integer.valueOf(split[1]))
+                .build();
     }
 }

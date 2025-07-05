@@ -17,13 +17,12 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.example.splitmoneybot.constant.BotConstant.GROUP_ALREADY_EXISTS;
-import static com.example.splitmoneybot.constant.BotConstant.GROUP_CREATED;
+
+import static com.example.splitmoneybot.constant.BotConstant.*;
+import static com.example.splitmoneybot.constant.UserState.*;
 
 @Service
 @RequiredArgsConstructor
@@ -36,17 +35,12 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final Mapper<Group, GroupDto> groupMapper;
 
-    public GroupDto createGroup(Update update) {
-        String text = update.getMessage().getText();
-        String[] createCollectCommand = text.split(" - ");
-        if (createCollectCommand.length < 2) {
-            log.debug("Not found name for collect");
-            throw new RuntimeException("Not found name for collect");
+    public SendMessage createGroup(Update update, Long chatId) {
+        Group createdGroup = create(chatId, update.getMessage().getText());
+        if (createdGroup == null) {
+            return SendMessage.builder().chatId(chatId.toString()).text(GROUP_ALREADY_EXISTS).build();
         }
-        String groupName = createCollectCommand[1];
-        Long chatId = update.getMessage().getChatId();
-
-        return groupMapper.toDto(create(chatId, groupName));
+        return SendMessage.builder().chatId(chatId.toString()).text(GROUP_CREATED + createdGroup.getName()).build();
     }
 
     private Group create(Long chatId, String groupName) {
@@ -63,16 +57,33 @@ public class GroupService {
             return null;
         }
         user.getGroups().add(newGroup);
-
         return groupRepository.save(newGroup);
     }
 
-    public List<Group> getAllGroupByChatId(Long chatId) {
-        return groupRepository.findAllByChatId(chatId);
+    public SendMessage delete(Update update, Long chatId) {
+        log.debug("Start delete group for user {}", chatId);
+        String groupName = update.getMessage().getText();
+        User user = userService.saveOrGet(chatId);
+
+        Group foundGroup = groupRepository.findGroupByNameAndUser(groupName, user);
+        if (foundGroup == null) {
+            log.debug("Group {} is not found", groupName);
+            return SendMessage.builder()
+                    .chatId(chatId.toString())
+                    .text("Не найдена группа " + groupName)
+                    .build();
+        }
+        user.getGroups().remove(foundGroup);
+        log.debug("Group {} is removed", groupName);
+        return SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(GROUP_DELETED + groupName)
+                .build();
     }
 
-    public List<GroupDto> getAllGroupDtoByChatId(Long chatId) {
-        return getAllGroupByChatId(chatId).stream().map(groupMapper::toDto).toList();
+
+    public List<Group> getAllGroupByChatId(Long chatId) {
+        return groupRepository.findAllByChatId(chatId);
     }
 
     @Transactional
@@ -80,16 +91,18 @@ public class GroupService {
         return groupRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Group not found: " + id));
     }
 
+    // TODO Обрабатывать такие случаи корректно dd - 100, bb - 44, dd - 1
+    // TODO Перенести актуальную группу в отдельный сервис
     @Transactional
     public void addMember(Update update) {
-        List<MemberDto> requestMembers = getMemberDtos(update);
+        List<MemberDto> requestMembers = memberService.getMemberDtos(update);
         List<Member> foundMembers = memberService.getMembersByNames(requestMembers.stream().map(MemberDto::getName).toList());
         if (!foundMembers.isEmpty()) {
             memberService.addMoneyToExistsMembers(foundMembers, requestMembers);
             memberService.removeRepeatMembersFromRequest(foundMembers, requestMembers);
         }
         List<Member> savedMembers = memberService.saveItems(requestMembers);
-        UUID groupId = userService.getCurrentGroupId(update.getMessage().getChatId());
+        UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
         group.getMembers().addAll(savedMembers);
@@ -97,7 +110,7 @@ public class GroupService {
 
     public void deleteMember(Update update) {
         String requestName = update.getMessage().getText();
-        UUID groupId = userService.getCurrentGroupId(update.getMessage().getChatId());
+        UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
         List<Member> members = group.getMembers();
@@ -111,45 +124,41 @@ public class GroupService {
         }
     }
 
-    private List<MemberDto> getMemberDtos(Update update) {
-        String[] data = update.getMessage().getText().split("\n");
-        return Arrays.stream(data).map(this::mapMemberDto).collect(Collectors.toList());
-    }
-
-    public SendMessage createGroup(Update update, Long chatId) {
-        GroupDto group = createGroup(update);
-        if (group == null) {
-            return SendMessage.builder().chatId(chatId.toString()).text(GROUP_ALREADY_EXISTS).build();
-        } else {
-            return SendMessage.builder().chatId(chatId.toString()).text(GROUP_CREATED).build();
-        }
-    }
-
     public SendMessage showAllGroups(Long chatId) {
         return SendMessage.builder()
                 .chatId(chatId.toString())
                 .text("Выберите группу:")
-                .replyMarkup(InlineKeyboardMarkup.builder().keyboard(prepareGroups(getAllGroupDtoByChatId(chatId))).build())
+                .replyMarkup(InlineKeyboardMarkup.builder()
+                        .keyboard(prepareGroups(getAllGroupDtoByChatId(chatId)))
+                        .build())
                 .build();
     }
 
     private List<List<InlineKeyboardButton>> prepareGroups(List<GroupDto> groups) {
-        return groups.stream()
+        List<List<InlineKeyboardButton>> buttons = groups.stream()
                 .map(group -> {
                     InlineKeyboardButton button = new InlineKeyboardButton();
                     button.setText(group.getName());
                     button.setCallbackData("group_" + group.getId());
                     return List.of(button);
                 })
-                .toList();
+                .collect(Collectors.toList());
+        List<InlineKeyboardButton> menu = List.of(
+                InlineKeyboardButton.builder()
+                        .text("➕")
+                        .callbackData("add_group")
+                        .build(),
+                InlineKeyboardButton.builder()
+                        .text("➖")
+                        .callbackData("delete_group")
+                        .build()
+        );
+        buttons.add(menu);
+        return buttons;
     }
 
-    private MemberDto mapMemberDto(String d) {
-        String[] split = d.split(" - ");
-        return MemberDto.builder()
-                .name(split[0])
-                .money(Integer.valueOf(split[1]))
-                .build();
+    private List<GroupDto> getAllGroupDtoByChatId(Long chatId) {
+        return getAllGroupByChatId(chatId).stream().map(groupMapper::toDto).toList();
     }
 
     public SendMessage getGroup(String callbackData, Long chatId) {
@@ -158,14 +167,17 @@ public class GroupService {
         InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
                 .keyboard(List.of(
                         List.of(InlineKeyboardButton.builder()
-                                        .text("➕ Добавить")
+                                        .text("\uD83D\uDE4B\u200D♂\uFE0F")
                                         .callbackData("add_member_" + groupId)
                                         .build(),
                                 InlineKeyboardButton.builder()
-                                        .text("➖ Удалить")
+                                        .text("\uD83D\uDE45\u200D♂\uFE0F")
                                         .callbackData("delete_member_" + groupId)
-                                        .build())
-                ))
+                                        .build()),
+                        List.of(InlineKeyboardButton.builder()
+                                .text("\uD83D\uDE45\u200D♂\uFE0F \uD83D\uDE45\u200D♀\uFE0F")
+                                .callbackData("delete_group_" + groupId)
+                                .build())))
                 .build();
         return SendMessage.builder()
                 .chatId(chatId.toString())
@@ -173,4 +185,33 @@ public class GroupService {
                 .replyMarkup(keyboard)
                 .build();
     }
+
+    public SendMessage startAddGroup(Long chatId) {
+        log.debug("Prepare to add group for user {}", chatId);
+        userService.setState(chatId, WAITING_FOR_ADD_GROUP);
+        return SendMessage.builder()
+                .chatId(chatId.toString())
+                .text("Введите имя группы")
+                .build();
+    }
+
+    public SendMessage startDeleteGroup(Long chatId) {
+        log.debug("Prepare to delete group for user {}", chatId);
+        userService.setState(chatId, WAITING_FOR_DELETE_GROUP);
+        return SendMessage.builder()
+                .chatId(chatId.toString())
+                .text("Введите имя группы")
+                .build();
+    }
+
+//    public SendMessage startAddMember(String callbackData, Long chatId) {
+//        log.debug("Start add member for user {}", chatId);
+//        UUID groupId = UUID.fromString(callbackData.split("_")[2]);
+//        userService.updateCurrentGroupId(chatId, groupId);
+//        userService.setState(chatId, WAITING_FOR_ADD_MEMBER);
+//        return SendMessage.builder()
+//                .chatId(chatId.toString())
+//                .text("Введите участников и суммы в формате\nимя1 - сумма\nимя2 - сумма")
+//                .build();
+//    }
 }

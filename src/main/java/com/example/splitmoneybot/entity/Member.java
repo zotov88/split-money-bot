@@ -20,6 +20,9 @@ public class Member {
     private UUID id;
 
     private String name;
-
     private Integer money;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    private Group group;
 }

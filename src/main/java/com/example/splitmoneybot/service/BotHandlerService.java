@@ -11,8 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import static com.example.splitmoneybot.constant.BotConstant.NEW_GROUP;
-import static com.example.splitmoneybot.constant.BotConstant.WELCOME_MESSAGE;
+import static com.example.splitmoneybot.constant.BotConstant.*;
 import static com.example.splitmoneybot.constant.UserState.*;
 
 @Service
@@ -63,6 +62,12 @@ public class BotHandlerService extends TelegramLongPollingBot {
         if (callbackData.startsWith("group_")) {
             executeMessage(groupService.getGroup(callbackData, chatId));
         }
+        if (callbackData.startsWith("add_group")) {
+            executeMessage(groupService.startAddGroup(chatId));
+        }
+        if (callbackData.startsWith("delete_group")) {
+            executeMessage(groupService.startDeleteGroup(chatId));
+        }
         if (callbackData.startsWith("add_member_")) {
             executeMessage(memberService.startAddMember(callbackData, chatId));
         }
@@ -93,8 +98,14 @@ public class BotHandlerService extends TelegramLongPollingBot {
         Long chatId = update.getMessage().getChatId();
         UserState state = userService.getState(chatId);
 
-        if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
+//        if (WAITING_FOR_GROUP_NAME.equals(state) && text.startsWith("группа - ")) {
+//            executeMessage(groupService.createGroup(update, chatId));
+//        }
+        if (WAITING_FOR_ADD_GROUP.equals(state)) {
             executeMessage(groupService.createGroup(update, chatId));
+        }
+        if (WAITING_FOR_DELETE_GROUP.equals(state)) {
+            executeMessage(groupService.delete(update, chatId));
         }
         if (WAITING_FOR_ADD_MEMBER.equals(state) && text.matches(regexAddMember)) {
             groupService.addMember(update);
