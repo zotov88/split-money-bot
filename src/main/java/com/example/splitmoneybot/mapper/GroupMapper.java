@@ -24,7 +24,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .id(entity.getId())
                 .name(entity.getName())
                 .chatId(getChatId(entity))
-                .memberIds(geItemIds(entity.getMembers()))
+                .memberIds(geMemberIds(entity.getMembers()))
                 .build();
     }
 
@@ -34,7 +34,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
                 .id(dto.getId())
                 .name(dto.getName())
                 .user(userService.getById(dto.getChatId()))
-                .members(memberService.getItems(dto.getId()))
+                .members(memberService.getAll(dto.getId()))
                 .build();
     }
 
@@ -42,7 +42,7 @@ public class GroupMapper implements Mapper<Group, GroupDto> {
         return entity == null ? null : entity.getUser().getChatId();
     }
 
-    private List<UUID> geItemIds(List<Member> members) {
+    private List<UUID> geMemberIds(List<Member> members) {
         return members == null ? null : members.stream().map(Member::getId).toList();
     }
 }

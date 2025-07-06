@@ -13,7 +13,7 @@ public class BotConstant {
 
     public String GROUP_ALREADY_EXISTS = "Уже существует такая группа";
 
-    public String GROUP_CREATED = "Создана группа ";
+    public String GROUP_CREATED = "Создана группа: ";
 
-    public String GROUP_DELETED = "Создана удалена ";
+    public String GROUP_DELETED = "Группа удалена: ";
 }

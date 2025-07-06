@@ -5,7 +5,7 @@ import com.example.splitmoneybot.dto.MemberDto;
 import com.example.splitmoneybot.entity.Group;
 import com.example.splitmoneybot.entity.Member;
 import com.example.splitmoneybot.entity.User;
-import com.example.splitmoneybot.mapper.Mapper;
+import com.example.splitmoneybot.mapper.GroupMapper;
 import com.example.splitmoneybot.repository.GroupRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -17,12 +17,13 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-
 import static com.example.splitmoneybot.constant.BotConstant.*;
-import static com.example.splitmoneybot.constant.UserState.*;
+import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_GROUP;
+import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_DELETE_GROUP;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +34,7 @@ public class GroupService {
     private final UserService userService;
     private final MemberService memberService;
     private final GroupRepository groupRepository;
-    private final Mapper<Group, GroupDto> groupMapper;
+    private final GroupMapper groupMapper;
 
     public SendMessage createGroup(Update update, Long chatId) {
         Group createdGroup = create(chatId, update.getMessage().getText());
@@ -62,9 +63,9 @@ public class GroupService {
 
     public SendMessage delete(Update update, Long chatId) {
         log.debug("Start delete group for user {}", chatId);
+
         String groupName = update.getMessage().getText();
         User user = userService.saveOrGet(chatId);
-
         Group foundGroup = groupRepository.findGroupByNameAndUser(groupName, user);
         if (foundGroup == null) {
             log.debug("Group {} is not found", groupName);
@@ -81,7 +82,6 @@ public class GroupService {
                 .build();
     }
 
-
     public List<Group> getAllGroupByChatId(Long chatId) {
         return groupRepository.findAllByChatId(chatId);
     }
@@ -91,8 +91,6 @@ public class GroupService {
         return groupRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Group not found: " + id));
     }
 
-    // TODO Обрабатывать такие случаи корректно dd - 100, bb - 44, dd - 1
-    // TODO Перенести актуальную группу в отдельный сервис
     @Transactional
     public void addMember(Update update) {
         List<MemberDto> requestMembers = memberService.getMemberDtos(update);
@@ -101,10 +99,11 @@ public class GroupService {
             memberService.addMoneyToExistsMembers(foundMembers, requestMembers);
             memberService.removeRepeatMembersFromRequest(foundMembers, requestMembers);
         }
-        List<Member> savedMembers = memberService.saveItems(requestMembers);
         UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
+        memberService.fillMemberDtoGroupId(update, requestMembers);
+        List<Member> savedMembers = memberService.save(requestMembers, group);
         group.getMembers().addAll(savedMembers);
     }
 
@@ -151,8 +150,7 @@ public class GroupService {
                 InlineKeyboardButton.builder()
                         .text("➖")
                         .callbackData("delete_group")
-                        .build()
-        );
+                        .build());
         buttons.add(menu);
         return buttons;
     }
@@ -163,6 +161,7 @@ public class GroupService {
 
     public SendMessage getGroup(String callbackData, Long chatId) {
         UUID groupId = UUID.fromString(callbackData.split("_")[1]);
+        CurrentGroup.update(chatId, groupId);
         Group group = getGroupById(groupId);
         InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
                 .keyboard(List.of(
@@ -203,15 +202,4 @@ public class GroupService {
                 .text("Введите имя группы")
                 .build();
     }
-
-//    public SendMessage startAddMember(String callbackData, Long chatId) {
-//        log.debug("Start add member for user {}", chatId);
-//        UUID groupId = UUID.fromString(callbackData.split("_")[2]);
-//        userService.updateCurrentGroupId(chatId, groupId);
-//        userService.setState(chatId, WAITING_FOR_ADD_MEMBER);
-//        return SendMessage.builder()
-//                .chatId(chatId.toString())
-//                .text("Введите участников и суммы в формате\nимя1 - сумма\nимя2 - сумма")
-//                .build();
-//    }
 }

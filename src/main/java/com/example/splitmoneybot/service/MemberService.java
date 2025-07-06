@@ -1,6 +1,7 @@
 package com.example.splitmoneybot.service;
 
 import com.example.splitmoneybot.dto.MemberDto;
+import com.example.splitmoneybot.entity.Group;
 import com.example.splitmoneybot.entity.Member;
 import com.example.splitmoneybot.mapper.MemberMapper;
 import com.example.splitmoneybot.repository.MemberRepository;
@@ -10,10 +11,7 @@ import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_MEMBER;
@@ -29,11 +27,11 @@ public class MemberService {
     private final MemberMapper memberMapper;
     private final UserService userService;
 
-    public List<Member> saveItems(List<MemberDto> members) {
-        return memberRepository.saveAll(members.stream().map(memberMapper::toEntity).toList());
+    public List<Member> save(List<MemberDto> members, Group group) {
+        return memberRepository.saveAll(members.stream().map(m -> memberMapper.toEntity(m, group)).toList());
     }
 
-    public List<Member> getItems(UUID id) {
+    public List<Member> getAll(UUID id) {
         return memberRepository.findAllById(List.of(id));
     }
 
@@ -90,15 +88,28 @@ public class MemberService {
 
     public List<MemberDto> getMemberDtos(Update update) {
         String[] data = update.getMessage().getText().split("\n");
-        return Arrays.stream(data).map(this::mapMemberDto).collect(Collectors.toList());
+        Map<String, MemberDto> memberDtoMap = Arrays.stream(data)
+                .map(this::mapMemberDto)
+                .collect(Collectors.toMap(MemberDto::getName, dto -> dto, this::sumMoney));
+
+        return new ArrayList<>(memberDtoMap.values());
     }
 
-    // TODO остановился на этом, нужно добавлять актуальную группу
-    private MemberDto mapMemberDto(String d) {
-        String[] split = d.split(" - ");
+    private MemberDto mapMemberDto(String line) {
+        String[] split = line.split(" - ");
         return MemberDto.builder()
                 .name(split[0])
                 .money(Integer.valueOf(split[1]))
                 .build();
+    }
+
+    private MemberDto sumMoney(MemberDto curr, MemberDto prev) {
+        curr.setMoney(curr.getMoney() + prev.getMoney());
+        return curr;
+    }
+
+    public void fillMemberDtoGroupId(Update update, List<MemberDto> requestMembers) {
+        UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
+        requestMembers.forEach(memberDto -> memberDto.setGroupId(groupId));
     }
 }

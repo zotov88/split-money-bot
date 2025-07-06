@@ -15,7 +15,7 @@ public class CurrentGroup {
 
     public void update(Long chatId, UUID groupId) {
         currentGroupIdMap.put(chatId, groupId);
-        log.debug("Current group {}", currentGroupIdMap);
+        log.debug("Current group {} for user {}", groupId, chatId);
     }
 
     public UUID get(Long chatId) {
