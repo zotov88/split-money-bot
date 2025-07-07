@@ -15,18 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class MemberServiceTest {
 
-    @Mock
-    MemberRepository memberRepository;
-
-    MemberMapper memberMapper = new MemberMapper();
-
-    @Mock
-    UserService userService;
-
-    private final MemberService memberService = new MemberService(memberRepository, memberMapper, userService);
-
     private final static long DEFAULT_CHAT_ID = 1234567L;
     private final static String DEFAULT_TEXT = "";
+    @Mock
+    MemberRepository memberRepository;
+    MemberMapper memberMapper = new MemberMapper();
+    @Mock
+    UserService userService;
+    private final MemberService memberService = new MemberService(memberRepository, memberMapper, userService);
 
     @Test
     void simple() {

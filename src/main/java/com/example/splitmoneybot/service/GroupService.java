@@ -17,7 +17,9 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -119,16 +121,17 @@ public class GroupService {
         } else {
             Member member = foundMember.get(0);
             members.remove(member);
-            log.debug("In group {} remove {}", group.getName(), member);
+            log.debug("In group {} remove {}", group.getName(), requestName);
         }
     }
 
     public SendMessage showAllGroups(Long chatId) {
+        List<GroupDto> groups = getAllGroupDtoByChatId(chatId);
         return SendMessage.builder()
                 .chatId(chatId.toString())
-                .text("Выберите группу:")
+                .text(groups.isEmpty() ? CREATE_GROUP : SELECT_GROUP)
                 .replyMarkup(InlineKeyboardMarkup.builder()
-                        .keyboard(prepareGroups(getAllGroupDtoByChatId(chatId)))
+                        .keyboard(prepareGroups(groups))
                         .build())
                 .build();
     }
@@ -142,47 +145,78 @@ public class GroupService {
                     return List.of(button);
                 })
                 .collect(Collectors.toList());
-        List<InlineKeyboardButton> menu = List.of(
-                InlineKeyboardButton.builder()
-                        .text("➕")
-                        .callbackData("add_group")
-                        .build(),
-                InlineKeyboardButton.builder()
-                        .text("➖")
-                        .callbackData("delete_group")
-                        .build());
-        buttons.add(menu);
+        buttons.add(createStartMenuGroup(groups));
         return buttons;
+    }
+
+    private List<InlineKeyboardButton> createStartMenuGroup(List<GroupDto> groups) {
+        List<InlineKeyboardButton> menu = new ArrayList<>();
+        menu.add(InlineKeyboardButton.builder()
+                .text("➕")
+                .callbackData("add_group")
+                .build());
+        if (!groups.isEmpty()) {
+            menu.add(InlineKeyboardButton.builder()
+                    .text("➖")
+                    .callbackData("delete_group")
+                    .build());
+        }
+        return menu;
     }
 
     private List<GroupDto> getAllGroupDtoByChatId(Long chatId) {
         return getAllGroupByChatId(chatId).stream().map(groupMapper::toDto).toList();
     }
 
-    public SendMessage getGroup(String callbackData, Long chatId) {
+    public SendMessage showGroupByCallback(String callbackData, Long chatId) {
         UUID groupId = UUID.fromString(callbackData.split("_")[1]);
         CurrentGroup.update(chatId, groupId);
-        Group group = getGroupById(groupId);
+
+        return showGroup(chatId);
+    }
+
+    public SendMessage showGroup(Long chatId) {
+        Group group = getGroupById(CurrentGroup.get(chatId));
         InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
-                .keyboard(List.of(
-                        List.of(InlineKeyboardButton.builder()
-                                        .text("\uD83D\uDE4B\u200D♂\uFE0F")
-                                        .callbackData("add_member_" + groupId)
-                                        .build(),
-                                InlineKeyboardButton.builder()
-                                        .text("\uD83D\uDE45\u200D♂\uFE0F")
-                                        .callbackData("delete_member_" + groupId)
-                                        .build()),
-                        List.of(InlineKeyboardButton.builder()
-                                .text("\uD83D\uDE45\u200D♂\uFE0F \uD83D\uDE45\u200D♀\uFE0F")
-                                .callbackData("delete_group_" + groupId)
-                                .build())))
+                .keyboard(createKeyboardIntoGroup(group))
                 .build();
         return SendMessage.builder()
                 .chatId(chatId.toString())
-                .text(memberService.prepareGroupMembers(group.getMembers()))
+                .text(memberService.prepareGroupMembers(new TreeSet<>(group.getMembers())))
                 .replyMarkup(keyboard)
                 .build();
+    }
+
+    private List<List<InlineKeyboardButton>> createKeyboardIntoGroup(Group group) {
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        List<InlineKeyboardButton> memberAction = new ArrayList<>();
+        memberAction.add(InlineKeyboardButton.builder()
+                .text("\uD83D\uDE4B\u200D♂\uFE0F")
+                .callbackData("add_member_" + group.getId())
+                .build());
+        if (!group.getMembers().isEmpty()) {
+            memberAction.add(InlineKeyboardButton.builder()
+                    .text("\uD83D\uDE45\u200D♂\uFE0F")
+                    .callbackData("delete_member_" + group.getId())
+                    .build());
+        }
+
+        List<InlineKeyboardButton> calculateAction = new ArrayList<>();
+        if (group.getMembers().size() > 1) {
+            calculateAction.add(InlineKeyboardButton.builder()
+                    .text("Средняя")
+                    .callbackData("average_" + group.getId())
+                    .build());
+            calculateAction.add(InlineKeyboardButton.builder()
+                    .text("Раскидать")
+                    .callbackData("equally_" + group.getId())
+                    .build());
+        }
+
+        keyboard.add(memberAction);
+        keyboard.add(calculateAction);
+        return keyboard;
     }
 
     public SendMessage startAddGroup(Long chatId) {

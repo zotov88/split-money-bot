@@ -14,6 +14,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.example.splitmoneybot.constant.BotConstant.ADD_MEMBERS;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_MEMBER;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_DELETE_MEMBER;
 
@@ -61,14 +62,14 @@ public class MemberService {
                 .build();
     }
 
-    public String prepareGroupMembers(List<Member> members) {
+    public String prepareGroupMembers(TreeSet<Member> members) {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < members.size(); i++) {
-            sb.append(i + 1).append(". ");
-            sb.append(members.get(i).getName()).append(": ");
-            sb.append(members.get(i).getMoney()).append("\n");
+        int count = 1;
+        for (Member member : members) {
+            sb.append(count++).append(". ").append(member.getName()).append(": ");
+            sb.append(member.getMoney()).append("\n");
         }
-        return sb.isEmpty() ? "Нет участников" : sb.toString();
+        return sb.isEmpty() ? ADD_MEMBERS : sb.toString();
     }
 
     public void addMoneyToExistsMembers(List<Member> foundMembers, List<MemberDto> requestMembers) {

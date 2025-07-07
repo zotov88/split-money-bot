@@ -60,7 +60,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
         Long chatId = callbackQuery.getMessage().getChatId();
 
         if (callbackData.startsWith("group_")) {
-            executeMessage(groupService.getGroup(callbackData, chatId));
+            executeMessage(groupService.showGroupByCallback(callbackData, chatId));
         }
         if (callbackData.startsWith("add_group")) {
             executeMessage(groupService.startAddGroup(chatId));
@@ -81,12 +81,12 @@ public class BotHandlerService extends TelegramLongPollingBot {
         Long chatId = update.getMessage().getChatId();
 
         if ("/start".equals(command)) {
-            userService.setState(chatId, IDLE);
             executeMessage(SendMessage.builder().chatId(chatId.toString()).text(WELCOME_MESSAGE).build());
         }
         if ("/groups".equals(command)) {
             executeMessage(groupService.showAllGroups(chatId));
         }
+        userService.setState(chatId, IDLE);
     }
 
     private void textHandler(Update update) {
@@ -96,17 +96,20 @@ public class BotHandlerService extends TelegramLongPollingBot {
 
         if (WAITING_FOR_ADD_GROUP.equals(state)) {
             executeMessage(groupService.createGroup(update, chatId));
+            executeMessage(groupService.showAllGroups(chatId));
         }
         if (WAITING_FOR_DELETE_GROUP.equals(state)) {
             executeMessage(groupService.delete(update, chatId));
+            executeMessage(groupService.showAllGroups(chatId));
         }
         if (WAITING_FOR_ADD_MEMBER.equals(state) && text.matches(regexAddMember)) {
             groupService.addMember(update);
+            executeMessage(groupService.showGroup(chatId));
         }
         if (WAITING_FOR_DELETE_MEMBER.equals(state)) {
             groupService.deleteMember(update);
+            executeMessage(groupService.showGroup(chatId));
         }
-        executeMessage(groupService.showAllGroups(chatId));
         userService.setState(chatId, IDLE);
     }
 
