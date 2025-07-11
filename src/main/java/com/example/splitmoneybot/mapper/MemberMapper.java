@@ -6,10 +6,10 @@ import com.example.splitmoneybot.entity.Member;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-@Component
-@RequiredArgsConstructor
-public class MemberMapper {
+import java.util.List;
 
+@Component
+public class MemberMapper {
 
     public MemberDto toDto(Member entity) {
         return MemberDto.builder()
@@ -20,6 +20,9 @@ public class MemberMapper {
                 .build();
     }
 
+    public List<MemberDto> toDto(List<Member> entities) {
+        return entities.stream().map(this::toDto).toList();
+    }
 
     public Member toEntity(MemberDto dto, Group group) {
         return Member.builder()

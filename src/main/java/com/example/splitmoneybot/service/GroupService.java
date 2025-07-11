@@ -17,15 +17,13 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.example.splitmoneybot.constant.BotConstant.*;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_GROUP;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_DELETE_GROUP;
+import static java.util.stream.Collectors.toMap;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +33,7 @@ public class GroupService {
 
     private final UserService userService;
     private final MemberService memberService;
+    private final CalculateService calculateService;
     private final GroupRepository groupRepository;
     private final GroupMapper groupMapper;
 
@@ -96,7 +95,8 @@ public class GroupService {
     @Transactional
     public void addMember(Update update) {
         List<MemberDto> requestMembers = memberService.getMemberDtos(update);
-        List<Member> foundMembers = memberService.getMembersByNames(requestMembers.stream().map(MemberDto::getName).toList());
+        List<String> memberNames = requestMembers.stream().map(MemberDto::getName).toList();
+        List<Member> foundMembers = memberService.getMembersByNamesAndGroupId(memberNames, CurrentGroup.get(update.getMessage().getChatId()));
         if (!foundMembers.isEmpty()) {
             memberService.addMoneyToExistsMembers(foundMembers, requestMembers);
             memberService.removeRepeatMembersFromRequest(foundMembers, requestMembers);
@@ -176,6 +176,7 @@ public class GroupService {
     }
 
     public SendMessage showGroup(Long chatId) {
+        log.debug("Show group {} for {}", CurrentGroup.get(chatId), chatId);
         Group group = getGroupById(CurrentGroup.get(chatId));
         InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
                 .keyboard(createKeyboardIntoGroup(group))
@@ -210,7 +211,7 @@ public class GroupService {
                     .build());
             calculateAction.add(InlineKeyboardButton.builder()
                     .text("Раскидать")
-                    .callbackData("equally_" + group.getId())
+                    .callbackData("split_" + group.getId())
                     .build());
         }
 
@@ -234,6 +235,27 @@ public class GroupService {
         return SendMessage.builder()
                 .chatId(chatId.toString())
                 .text("Введите имя группы")
+                .build();
+    }
+
+    public SendMessage showAverageSum(String callbackData, Long chatId) {
+        UUID groupId = UUID.fromString(callbackData.split("_")[1]);
+        Group group = getGroupById(groupId);
+        int avg = calculateService.avg(group.getMembers().stream().map(Member::getMoney).toList());
+
+        return SendMessage.builder()
+                .chatId(chatId)
+                .text("Средняя сумма в группе " + group.getName() + " = " + avg)
+                .build();
+    }
+
+    public SendMessage showSplittedMoney(String callbackData, Long chatId) {
+        UUID groupId = UUID.fromString(callbackData.split("_")[1]);
+        Group group = getGroupById(groupId);
+
+        return SendMessage.builder()
+                .chatId(chatId)
+                .text(calculateService.splitMoney(memberService.getMemberMoneyMap(group.getMembers())))
                 .build();
     }
 }

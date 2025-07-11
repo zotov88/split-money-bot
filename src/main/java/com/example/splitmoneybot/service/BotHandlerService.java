@@ -74,6 +74,12 @@ public class BotHandlerService extends TelegramLongPollingBot {
         if (callbackData.startsWith("delete_member_")) {
             executeMessage(memberService.startDeleteMember(callbackData, chatId));
         }
+        if (callbackData.startsWith("average_")) {
+            executeMessage(groupService.showAverageSum(callbackData, chatId));
+        }
+        if (callbackData.startsWith("split_")) {
+            executeMessage(groupService.showSplittedMoney(callbackData, chatId));
+        }
     }
 
     private void commandHandler(Update update) {

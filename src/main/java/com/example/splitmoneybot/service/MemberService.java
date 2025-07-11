@@ -36,8 +36,8 @@ public class MemberService {
         return memberRepository.findAllById(List.of(id));
     }
 
-    public List<Member> getMembersByNames(List<String> names) {
-        return memberRepository.findAllByNameIn(names);
+    public List<Member> getMembersByNamesAndGroupId(List<String> names, UUID groupId) {
+        return memberRepository.findAllByNameInAndGroupId(names, groupId);
     }
 
     public SendMessage startAddMember(String callbackData, Long chatId) {
@@ -112,5 +112,11 @@ public class MemberService {
     public void fillMemberDtoGroupId(Update update, List<MemberDto> requestMembers) {
         UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
         requestMembers.forEach(memberDto -> memberDto.setGroupId(groupId));
+    }
+
+    public Map<MemberDto, Integer> getMemberMoneyMap(List<Member> members) {
+        return members.stream()
+                .map(memberMapper::toDto)
+                .collect(Collectors.toMap(m -> m, MemberDto::getMoney));
     }
 }
