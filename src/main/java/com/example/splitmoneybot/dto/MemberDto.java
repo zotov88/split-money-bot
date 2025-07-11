@@ -10,6 +10,7 @@ import java.util.UUID;
 public class MemberDto {
 
     private UUID id;
+    private UUID groupId;
     private String name;
     private Integer money;
 }

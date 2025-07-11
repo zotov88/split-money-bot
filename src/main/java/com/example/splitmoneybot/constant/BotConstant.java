@@ -8,10 +8,15 @@ public class BotConstant {
     public String WELCOME_MESSAGE = "Я помогу определить кто кому сколько должен денег, когда вклад в общаг не равный." +
             "\nЧтобы начать, создайте новую группу с помощью команды /new_collect";
 
-    public String NEW_GROUP = "Введите название группы в формате" +
-            "\n\"группа - название группы\".";
+    public String CREATE_GROUP = "Создайте группу";
 
-    public String GROUP_ALREADY_EXISTS = "Такая группа уже существует";
+    public String SELECT_GROUP = "Выберете группу";
 
-    public String GROUP_CREATED = "Группа создана";
+    public String GROUP_ALREADY_EXISTS = "Уже существует такая группа";
+
+    public String GROUP_CREATED = "Создана группа: ";
+
+    public String GROUP_DELETED = "Группа удалена: ";
+
+    public String ADD_MEMBERS = "Добавьте участников";
 }

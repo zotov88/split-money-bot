@@ -8,5 +8,5 @@ import java.util.UUID;
 
 public interface MemberRepository extends JpaRepository<Member, UUID> {
 
-    List<Member> findAllByNameIn(List<String> names);
+    List<Member> findAllByNameInAndGroupId(List<String> names, UUID groupId);
 }
