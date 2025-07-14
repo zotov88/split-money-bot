@@ -17,13 +17,15 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.example.splitmoneybot.constant.BotConstant.*;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_GROUP;
 import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_DELETE_GROUP;
-import static java.util.stream.Collectors.toMap;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,7 @@ public class GroupService {
 
     private final UserService userService;
     private final MemberService memberService;
+    private final CurrentGroupService currentGroupService;
     private final CalculateService calculateService;
     private final GroupRepository groupRepository;
     private final GroupMapper groupMapper;
@@ -47,12 +50,8 @@ public class GroupService {
 
     private Group create(Long chatId, String groupName) {
         log.debug("Create group {}", groupName);
-
         User user = userService.saveOrGet(chatId);
-        Group newGroup = Group.builder()
-                .name(groupName)
-                .user(user)
-                .build();
+        Group newGroup = Group.builder().name(groupName).user(user).build();
         Group foundGroup = groupRepository.findGroupByNameAndUser(groupName, user);
         if (foundGroup != null) {
             log.debug("Group is already exists");
@@ -64,7 +63,6 @@ public class GroupService {
 
     public SendMessage delete(Update update, Long chatId) {
         log.debug("Start delete group for user {}", chatId);
-
         String groupName = update.getMessage().getText();
         User user = userService.saveOrGet(chatId);
         Group foundGroup = groupRepository.findGroupByNameAndUser(groupName, user);
@@ -96,12 +94,12 @@ public class GroupService {
     public void addMember(Update update) {
         List<MemberDto> requestMembers = memberService.getMemberDtos(update);
         List<String> memberNames = requestMembers.stream().map(MemberDto::getName).toList();
-        List<Member> foundMembers = memberService.getMembersByNamesAndGroupId(memberNames, CurrentGroup.get(update.getMessage().getChatId()));
+        UUID groupId = currentGroupService.get(update.getMessage().getChatId());
+        List<Member> foundMembers = memberService.getMembersByNamesAndGroupId(memberNames, groupId);
         if (!foundMembers.isEmpty()) {
             memberService.addMoneyToExistsMembers(foundMembers, requestMembers);
             memberService.removeRepeatMembersFromRequest(foundMembers, requestMembers);
         }
-        UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
         memberService.fillMemberDtoGroupId(update, requestMembers);
@@ -109,20 +107,24 @@ public class GroupService {
         group.getMembers().addAll(savedMembers);
     }
 
-    public void deleteMember(Update update) {
+    public SendMessage deleteMember(Update update) {
         String requestName = update.getMessage().getText();
-        UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
+        UUID groupId = currentGroupService.get(update.getMessage().getChatId());
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new EntityNotFoundException("Not found group " + groupId));
         List<Member> members = group.getMembers();
         List<Member> foundMember = members.stream().filter(m -> m.getName().equals(requestName)).toList();
+        String text;
         if (foundMember.isEmpty()) {
             log.debug("Member {} not found in group {}", requestName, group.getName());
+            text = "Member " + requestName + " not found in group " + group.getName();
         } else {
             Member member = foundMember.get(0);
             members.remove(member);
-            log.debug("In group {} remove {}", group.getName(), requestName);
+            log.debug("{} remove from {}", requestName, group.getName());
+            text = requestName + " remove from " + group.getName();
         }
+        return SendMessage.builder().chatId(update.getMessage().getChatId()).text(text).build();
     }
 
     public SendMessage showAllGroups(Long chatId) {
@@ -141,7 +143,7 @@ public class GroupService {
                 .map(group -> {
                     InlineKeyboardButton button = new InlineKeyboardButton();
                     button.setText(group.getName());
-                    button.setCallbackData("group_" + group.getId());
+                    button.setCallbackData("group" + SPLITTER + group.getId());
                     return List.of(button);
                 })
                 .collect(Collectors.toList());
@@ -169,15 +171,18 @@ public class GroupService {
     }
 
     public SendMessage showGroupByCallback(String callbackData, Long chatId) {
-        UUID groupId = UUID.fromString(callbackData.split("_")[1]);
-        CurrentGroup.update(chatId, groupId);
-
+        currentGroupService.update(chatId, getGroupId(callbackData));
         return showGroup(chatId);
     }
 
+    private static UUID getGroupId(String callbackData) {
+        return UUID.fromString(callbackData.split(SPLITTER)[1]);
+    }
+
     public SendMessage showGroup(Long chatId) {
-        log.debug("Show group {} for {}", CurrentGroup.get(chatId), chatId);
-        Group group = getGroupById(CurrentGroup.get(chatId));
+        UUID groupId = currentGroupService.get(chatId);
+        log.debug("Show group {} for {}", groupId, chatId);
+        Group group = getGroupById(groupId);
         InlineKeyboardMarkup keyboard = InlineKeyboardMarkup.builder()
                 .keyboard(createKeyboardIntoGroup(group))
                 .build();
@@ -193,13 +198,13 @@ public class GroupService {
 
         List<InlineKeyboardButton> memberAction = new ArrayList<>();
         memberAction.add(InlineKeyboardButton.builder()
-                .text("\uD83D\uDE4B\u200D♂\uFE0F")
-                .callbackData("add_member_" + group.getId())
+                .text(ADD_EMOJI)
+                .callbackData("add_member" + SPLITTER + group.getId())
                 .build());
         if (!group.getMembers().isEmpty()) {
             memberAction.add(InlineKeyboardButton.builder()
-                    .text("\uD83D\uDE45\u200D♂\uFE0F")
-                    .callbackData("delete_member_" + group.getId())
+                    .text(DELETE_EMOJI)
+                    .callbackData("delete_member" + SPLITTER + group.getId())
                     .build());
         }
 
@@ -207,11 +212,11 @@ public class GroupService {
         if (group.getMembers().size() > 1) {
             calculateAction.add(InlineKeyboardButton.builder()
                     .text("Средняя")
-                    .callbackData("average_" + group.getId())
+                    .callbackData("average" + SPLITTER + group.getId())
                     .build());
             calculateAction.add(InlineKeyboardButton.builder()
                     .text("Раскидать")
-                    .callbackData("split_" + group.getId())
+                    .callbackData("split" + SPLITTER + group.getId())
                     .build());
         }
 
@@ -239,10 +244,8 @@ public class GroupService {
     }
 
     public SendMessage showAverageSum(String callbackData, Long chatId) {
-        UUID groupId = UUID.fromString(callbackData.split("_")[1]);
-        Group group = getGroupById(groupId);
+        Group group = getGroupById(getGroupId(callbackData));
         int avg = calculateService.avg(group.getMembers().stream().map(Member::getMoney).toList());
-
         return SendMessage.builder()
                 .chatId(chatId)
                 .text("Средняя сумма в группе " + group.getName() + " = " + avg)
@@ -250,9 +253,7 @@ public class GroupService {
     }
 
     public SendMessage showSplittedMoney(String callbackData, Long chatId) {
-        UUID groupId = UUID.fromString(callbackData.split("_")[1]);
-        Group group = getGroupById(groupId);
-
+        Group group = getGroupById(getGroupId(callbackData));
         return SendMessage.builder()
                 .chatId(chatId)
                 .text(calculateService.splitMoney(memberService.getMemberMoneyMap(group.getMembers())))

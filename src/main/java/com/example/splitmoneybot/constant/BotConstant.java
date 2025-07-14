@@ -19,4 +19,12 @@ public class BotConstant {
     public String GROUP_DELETED = "Группа удалена: ";
 
     public String ADD_MEMBERS = "Добавьте участников";
+
+    public String SPLITTER = "_";
+
+    public String ADD_EMOJI = "\uD83D\uDE4B\u200D♂️";
+
+    public String DELETE_EMOJI = "\uD83D\uDE45\u200D♂️";
+
+    public String MONEY_EMOJI = "\uD83D\uDCB5";
 }

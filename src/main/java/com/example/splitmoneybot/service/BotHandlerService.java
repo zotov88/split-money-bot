@@ -11,7 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import static com.example.splitmoneybot.constant.BotConstant.WELCOME_MESSAGE;
+import static com.example.splitmoneybot.constant.BotConstant.*;
 import static com.example.splitmoneybot.constant.UserState.*;
 
 @Service
@@ -59,7 +59,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
         String callbackData = callbackQuery.getData();
         Long chatId = callbackQuery.getMessage().getChatId();
 
-        if (callbackData.startsWith("group_")) {
+        if (callbackData.startsWith("group" + SPLITTER)) {
             executeMessage(groupService.showGroupByCallback(callbackData, chatId));
         }
         if (callbackData.startsWith("add_group")) {
@@ -68,16 +68,16 @@ public class BotHandlerService extends TelegramLongPollingBot {
         if (callbackData.startsWith("delete_group")) {
             executeMessage(groupService.startDeleteGroup(chatId));
         }
-        if (callbackData.startsWith("add_member_")) {
+        if (callbackData.startsWith("add_member" + SPLITTER)) {
             executeMessage(memberService.startAddMember(callbackData, chatId));
         }
-        if (callbackData.startsWith("delete_member_")) {
+        if (callbackData.startsWith("delete_member" + SPLITTER)) {
             executeMessage(memberService.startDeleteMember(callbackData, chatId));
         }
-        if (callbackData.startsWith("average_")) {
+        if (callbackData.startsWith("average" + SPLITTER)) {
             executeMessage(groupService.showAverageSum(callbackData, chatId));
         }
-        if (callbackData.startsWith("split_")) {
+        if (callbackData.startsWith("split" + SPLITTER)) {
             executeMessage(groupService.showSplittedMoney(callbackData, chatId));
         }
     }
@@ -113,7 +113,7 @@ public class BotHandlerService extends TelegramLongPollingBot {
             executeMessage(groupService.showGroup(chatId));
         }
         if (WAITING_FOR_DELETE_MEMBER.equals(state)) {
-            groupService.deleteMember(update);
+            executeMessage(groupService.deleteMember(update));
             executeMessage(groupService.showGroup(chatId));
         }
         userService.setState(chatId, IDLE);
