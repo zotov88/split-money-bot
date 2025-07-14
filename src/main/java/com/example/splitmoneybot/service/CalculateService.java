@@ -9,6 +9,8 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.Map;
 
+import static com.example.splitmoneybot.constant.BotConstant.*;
+
 @Service
 @Slf4j
 public class CalculateService {
@@ -41,7 +43,7 @@ public class CalculateService {
                 memberToMoney--;
             }
             sb.append(memberFrom.getName()).append(" -> ").append(memberTo.getName())
-                    .append(" \uD83D\uDCB5 ").append(count).append("\n");
+                    .append(" ").append(MONEY_EMOJI).append(" ").append(count).append("\n");
 
             if (memberFromMoney == avg && memberToMoney == avg) {
                 continue;

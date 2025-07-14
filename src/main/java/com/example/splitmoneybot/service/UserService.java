@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 public class UserService {
 
     private final UserRepository userRepository;
-//    private final Map<Long, UUID> currentGroupIdMap = new HashMap<>();
 
     @Transactional
     public User saveOrGet(Long chatId) {
@@ -51,13 +50,4 @@ public class UserService {
     public User getById(Long chatId) {
         return userRepository.getReferenceById(chatId);
     }
-//
-//    public void updateCurrentGroupId(Long chatId, UUID groupId) {
-//        currentGroupIdMap.put(chatId, groupId);
-//        log.debug("Current group {}", currentGroupIdMap);
-//    }
-//
-//    public UUID getCurrentGroupId(Long chatId) {
-//        return currentGroupIdMap.get(chatId);
-//    }
 }

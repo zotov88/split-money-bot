@@ -14,9 +14,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.example.splitmoneybot.constant.BotConstant.ADD_MEMBERS;
-import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_ADD_MEMBER;
-import static com.example.splitmoneybot.constant.UserState.WAITING_FOR_DELETE_MEMBER;
+import static com.example.splitmoneybot.constant.BotConstant.*;
+import static com.example.splitmoneybot.constant.UserState.*;
 
 
 @Service
@@ -26,6 +25,7 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final MemberMapper memberMapper;
+    private final CurrentGroupService currentGroupService;
     private final UserService userService;
 
     public List<Member> save(List<MemberDto> members, Group group) {
@@ -42,8 +42,7 @@ public class MemberService {
 
     public SendMessage startAddMember(String callbackData, Long chatId) {
         log.debug("Start add member for user {}", chatId);
-        UUID groupId = UUID.fromString(callbackData.split("_")[2]);
-        CurrentGroup.update(chatId, groupId);
+        currentGroupService.update(chatId, getGroupId(callbackData));
         userService.setState(chatId, WAITING_FOR_ADD_MEMBER);
         return SendMessage.builder()
                 .chatId(chatId.toString())
@@ -53,8 +52,7 @@ public class MemberService {
 
     public SendMessage startDeleteMember(String callbackData, Long chatId) {
         log.debug("Start delete member for user {}", chatId);
-        UUID groupId = UUID.fromString(callbackData.split("_")[2]);
-        CurrentGroup.update(chatId, groupId);
+        currentGroupService.update(chatId, getGroupId(callbackData));
         userService.setState(chatId, WAITING_FOR_DELETE_MEMBER);
         return SendMessage.builder()
                 .chatId(chatId.toString())
@@ -110,7 +108,7 @@ public class MemberService {
     }
 
     public void fillMemberDtoGroupId(Update update, List<MemberDto> requestMembers) {
-        UUID groupId = CurrentGroup.get(update.getMessage().getChatId());
+        UUID groupId = currentGroupService.get(update.getMessage().getChatId());
         requestMembers.forEach(memberDto -> memberDto.setGroupId(groupId));
     }
 
@@ -118,5 +116,9 @@ public class MemberService {
         return members.stream()
                 .map(memberMapper::toDto)
                 .collect(Collectors.toMap(m -> m, MemberDto::getMoney));
+    }
+
+    private UUID getGroupId(String callbackData) {
+        return UUID.fromString(callbackData.split(SPLITTER)[2]);
     }
 }
