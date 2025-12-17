@@ -9,7 +9,7 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.Map;
 
-import static com.example.splitmoneybot.constant.BotConstant.*;
+import static com.example.splitmoneybot.constant.BotConstant.MONEY_EMOJI;
 
 @Service
 @Slf4j
@@ -39,7 +39,7 @@ public class CalculateService {
             int count = 0;
             while (memberFromMoney < avg && memberToMoney > avg) {
                 count++;
-                memberFromMoney ++;
+                memberFromMoney++;
                 memberToMoney--;
             }
             sb.append(memberFrom.getName()).append(" -> ").append(memberTo.getName())
@@ -61,7 +61,8 @@ public class CalculateService {
     }
 
     private void fillStacks(Map<MemberDto, Integer> map, int avg,
-                            Deque<MemberDto> lessAvgStack, Deque<MemberDto> biggerAvgStack) {
+                            Deque<MemberDto> lessAvgStack,
+                            Deque<MemberDto> biggerAvgStack) {
         for (Map.Entry<MemberDto, Integer> entry : map.entrySet()) {
             if (entry.getValue() < avg) {
                 lessAvgStack.add(entry.getKey());
